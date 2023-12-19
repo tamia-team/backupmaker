@@ -1,0 +1,28 @@
+FROM alpine:latest
+
+ENV WORKDIR="/app" \
+    DIR_RELATIVE_BACKUPS="backups" \
+    DIR_RELATIVE_BIN="bin" \
+    DIR_BACKUPS="${WORKDIR}/${DIR_RELATIVE_BACKUPS}" \ 
+    DIR_BIN="${WORKDIR}/${DIR_RELATIVE_BIN}" \ 
+    SCRIPT_PATH="mongo/backupmaker.mongo.sh" \
+    GIT_USERNAME="tamia-team" \
+    GIT_REPOSITORY="team-tamia-oss-backupmaker" \
+    GIT_BRANCH="main" \
+    CRON_SCHEDULE="0 * * * *"
+ENV SCRIPT_URL "https://github.com/${GIT_USERNAME}/${GIT_REPOSITORY}/raw/${GIT_BRANCH}/${SCRIPT_PATH}"
+
+WORKDIR /app
+
+RUN apk --no-cache add curl bash \
+    && mkdir -p ${DIR_BIN} ${DIR_BACKUP} \
+    && export SCRIPT_NAME=$(echo "${SCRIPT_URL}" | sed 's/.*\///') \
+    && export SCRIPT_FILENAME="${DIR_BIN}/${SCRIPT_NAME}" \
+    && echo $SCRIPT_FILENAME \
+    && curl -o ${SCRIPT_FILENAME} ${SCRIPT_URL} \
+    && echo "${CRON_SCHEDULE} ${SCRIPT_FILENAME}" > /etc/crontabs/root \ 
+    && touch /var/log/cron.log \
+    && ln -sf /dev/stdout /var/log/cron.log
+
+CMD ["crond", "-f"]
+
